@@ -1,6 +1,6 @@
 {
 	"name": "pino-quiet",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"description": "A lightweight pino transport that collapses repeated consecutive log messages.",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
