@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/pino-quiet.png" alt="pino-quiet" width="935" height="267">
+  <img src="assets/pino-quiet.png" alt="pino-quiet" width="335">
 
   <h1>pino-quiet</h1>
 
