@@ -1,6 +1,6 @@
 import { once } from 'node:events';
 import { describe, expect, it } from 'vitest';
-import pinoQuiet from '../src/index.ts';
+import pinoQuiet from '../src/index';
 
 function line(obj: Record<string, unknown>) {
 	return `${JSON.stringify(obj)}\n`;

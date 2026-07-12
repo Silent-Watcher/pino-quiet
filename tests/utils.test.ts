@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getComparable, isDuplicate, resolveOptions } from '../src/utils.ts';
+import { getComparable, isDuplicate, resolveOptions } from '../src/utils';
 
 describe('resolveOptions', () => {
 	it('applies documented defaults when no options are given', () => {

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import pinoQuiet from '../src/index.ts';
+import pinoQuiet from '../src/index';
 
 function line(obj: Record<string, unknown>) {
 	return `${JSON.stringify(obj)}\n`;

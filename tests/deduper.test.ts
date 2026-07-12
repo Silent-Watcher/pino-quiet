@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Deduper } from '../src/deduper.ts';
-import { resolveOptions } from '../src/utils.ts';
+import { Deduper } from '../src/deduper';
+import { resolveOptions } from '../src/utils';
 
 function emitted(lines: string[]) {
 	return lines.map((l) => JSON.parse(l));
