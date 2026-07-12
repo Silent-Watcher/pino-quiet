@@ -7,6 +7,9 @@ const logger = pino({
 			// Options defined in our interface
 			strict: false, // Simple message comparison
 			countField: 'repeats',
+			// New in v1: force-flush a stale buffered log after 2s of silence,
+			// so a repeated line's final count doesn't sit hidden forever.
+			flushIntervalMs: 2000,
 		},
 	},
 	// Optional: Add a mixin to simulate real app data

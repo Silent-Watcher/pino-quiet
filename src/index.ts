@@ -1,105 +1,122 @@
 import { once } from 'node:events';
-import equal from 'fast-deep-equal';
+import { pipeline as streamPipeline, Transform } from 'node:stream';
 import build from 'pino-abstract-transport';
 import SonicBoom from 'sonic-boom';
+import { Deduper } from './deduper.ts';
+import { resolveOptions } from './utils.ts';
 
-export interface PinoQuietOptions {
-	// Destination file descriptor or path. Defaults to 1 (stdout).
-	destination?: string | number;
+export type {
+	FlushMeta,
+	LogRecord,
+	PinoQuietOptions,
+	ResolvedOptions,
+} from './types.ts';
 
-	// If true, compares the entire log object (excluding time/pid).
-	// If false (default), only compares the 'msg' string.
-	strict?: boolean;
+/**
+ * Builds a "terminal" transport: pino-quiet owns a SonicBoom destination and
+ * writes collapsed NDJSON lines directly to it. This is the classic,
+ * backward-compatible mode (`{ target: 'pino-quiet' }` as the whole
+ * transport, or the last stage of a `pipeline`).
+ */
+function buildDestinationTransport(opts: ReturnType<typeof resolveOptions>) {
+	const dest = new SonicBoom({
+		dest: opts.destination,
+		sync: opts.sync,
+		mkdir: opts.mkdir,
+		append: opts.append,
+	});
 
-	// The field name to inject the repetition count into. Defaults to 'repeats'.
-	countField?: string;
-}
+	// Prevent an unhandled 'error' from crashing the whole process; surface
+	// it on stderr instead so operators can see it in logs/monitoring.
+	dest.on('error', (err) => {
+		process.stderr.write(
+			`pino-quiet: destination write error: ${err?.stack ?? String(err)}\n`,
+		);
+	});
 
-// Helper to strip volatile fields (time, pid, hostname) for strict comparison
-const getComparable = (obj: any) => {
-	const { _time, _pid, _hostname, ...rest } = obj;
-	return rest;
-};
+	const deduper = new Deduper(opts, (line) => {
+		dest.write(line);
+	});
 
-export default async function pinoQuiet(opts: PinoQuietOptions = {}) {
-	// defaulting options
-	const dest = new SonicBoom({ dest: opts.destination || 1, sync: false });
-	const countField = opts.countField || 'repeats';
-	const isStrict = opts.strict || false;
-
-	// STATE MANAGEMENT
-	// We hold the last log in memory to compare against the incoming one.
-	let lastLog: any = null;
-	let lastLogComparable: any = null; // Optimized version for comparison
-	let repeatCount = 0;
-
-	// Internal function to flush the buffer to the output stream
-	const flushLastLog = () => {
-		if (lastLog) {
-			if (repeatCount > 0) {
-				// Inject the repetition count into the log object
-				lastLog[countField] = repeatCount + 1;
-
-				// Optional: Modify message to make it obvious visually
-				if (typeof lastLog.msg === 'string') {
-					lastLog.msg = `${lastLog.msg} (x${repeatCount + 1})`;
-				}
-			}
-
-			// Write to the destination (usually stdout)
-			// We stringify here because SonicBoom expects a string for writing
-			dest.write(`${JSON.stringify(lastLog)}]\n`);
-		}
-		// Reset state
-		lastLog = null;
-		lastLogComparable = null;
-		repeatCount = 0;
-	};
-
-	// Build the transport using pino-abstract-transport
-	// source is an AsyncIterable of log lines
 	return build(
 		async (source) => {
 			for await (const obj of source) {
-				// 1. Determine comparison basis
-				// If strict, we look at the whole object minus timestamps.
-				// If not strict, we just check if the message string is identical.
-				const currentComparable = isStrict
-					? getComparable(obj)
-					: obj.msg;
-
-				// 2. Comparison Logic
-				if (lastLog && equal(lastLogComparable, currentComparable)) {
-					// It's a duplicate! Don't write yet, just increment.
-					repeatCount++;
-				} else {
-					// It's different (or the first log).
-					// Flush the previous one (if it exists) and store this new one.
-					flushLastLog();
-
-					lastLog = obj;
-					lastLogComparable = currentComparable;
-				}
-			}
-
-			// 3. Cleanup
-			// The stream has ended (application shutting down).
-			// Ensure the final pending log is written.
-			flushLastLog();
-
-			// Close the destination stream properly
-			if (dest) {
-				dest.end();
-				await once(dest, 'close');
+				deduper.ingest(obj);
 			}
 		},
-
 		{
-			// This allows the transport to clean up properly on exit
-			close: async (_err, _cb) => {
-				flushLastLog();
+			// `close` is the single place responsible for flushing whatever is
+			// still buffered and tearing down the destination. Doing this in
+			// *both* the loop and here would race `dest.end()` against itself.
+			close: async () => {
+				deduper.flush();
+				deduper.destroy();
 				dest.end();
+				await once(dest, 'close');
 			},
 		},
 	);
+}
+
+/**
+ * Builds a pass-through Transform: pino-quiet collapses duplicates and
+ * pushes the resulting NDJSON downstream instead of writing anywhere
+ * itself. This is what makes it composable as a stage *before*
+ * `pino-pretty` (or any other transport) in:
+ *
+ * ```js
+ * pino.transport({
+ *   pipeline: [
+ *     { target: 'pino-quiet', options: { pipeline: true } },
+ *     { target: 'pino-pretty' },
+ *   ],
+ * })
+ * ```
+ */
+function buildPipelineTransform(opts: ReturnType<typeof resolveOptions>) {
+	// Declared before the Deduper so its emit callback can close over it —
+	// it is only ever invoked after `transform` has been assigned below.
+	let transform!: Transform;
+
+	const deduper = new Deduper(opts, (line) => {
+		transform.push(line);
+	});
+
+	transform = new Transform({
+		objectMode: true,
+		autoDestroy: true,
+		transform(chunk, _enc, callback) {
+			deduper.ingest(chunk);
+			callback();
+		},
+		flush(callback) {
+			deduper.flush();
+			callback();
+		},
+	});
+
+	return build(
+		(source) => {
+			streamPipeline(source, transform, () => {
+				/* errors, if any, surface via the transform's own 'error' event */
+			});
+			return transform;
+		},
+		{
+			enablePipelining: true,
+			close(_err, callback) {
+				deduper.destroy();
+				callback();
+			},
+		},
+	);
+}
+
+export default async function pinoQuiet(
+	rawOpts: import('./types.ts').PinoQuietOptions = {},
+) {
+	const opts = resolveOptions(rawOpts);
+	return opts.pipeline
+		? buildPipelineTransform(opts)
+		: buildDestinationTransport(opts);
 }
