@@ -1,5 +1,5 @@
-import type { LogRecord, ResolvedOptions } from './types.ts';
-import { isDuplicate } from './utils.ts';
+import type { LogRecord, ResolvedOptions } from './types';
+import { isDuplicate } from './utils';
 
 /**
  * Framework-agnostic collapsing engine. Both the "destination" transport

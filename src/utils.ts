@@ -1,6 +1,6 @@
 import equal from 'fast-deep-equal';
-import { DEFAULT_IGNORE_KEYS, DEFAULTS } from './constants.ts';
-import type { LogRecord, PinoQuietOptions, ResolvedOptions } from './types.ts';
+import { DEFAULT_IGNORE_KEYS, DEFAULTS } from './constants';
+import type { LogRecord, PinoQuietOptions, ResolvedOptions } from './types';
 
 /**
  * Merges user options with defaults, validating the shapes we can validate

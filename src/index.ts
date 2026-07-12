@@ -2,8 +2,8 @@ import { once } from 'node:events';
 import { pipeline as streamPipeline, Transform } from 'node:stream';
 import build from 'pino-abstract-transport';
 import SonicBoom from 'sonic-boom';
-import { Deduper } from './deduper.ts';
-import { resolveOptions } from './utils.ts';
+import { Deduper } from './deduper';
+import { resolveOptions } from './utils';
 
 export type {
 	FlushMeta,
