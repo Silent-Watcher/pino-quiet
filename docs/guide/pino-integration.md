@@ -18,7 +18,7 @@ Pino serializes transport options with the **Structured Clone** algorithm before
 
 `destination`, `strict`, `countField`, `ignoreKeys`, `levelAware`, `caseInsensitive`, `maxRepeats`, `flushIntervalMs`, `minRepeatsToAnnotate`, `annotateMessage`, `includeTimestamps`, `firstSeenField`, `lastSeenField`, `excludeLevels`, `pipeline`, `mkdir`, `append`, `sync`
 
-### Callback options — direct factory invocation only
+### Callback options — direct factory invocation only {#callbacks}
 
 `comparator`, `suffixFormat`, `onFlush` are functions. Passing them through `pino({ transport: { target: 'pino-quiet', options: { ... } } })` fails with:
 
@@ -43,6 +43,10 @@ const logger = pino(transport);
 ```
 
 This works because the factory runs in *your* process — no serialization boundary is crossed. It also works with bundler-based setups and when loading the transport from a local module.
+
+## Invalid options
+
+Options are validated when the transport is created. Through the worker the failure arrives as an `error` event on the transport object; attach a listener. See [`pinoQuiet()`](/api/factory).
 
 ## Callback error policies
 

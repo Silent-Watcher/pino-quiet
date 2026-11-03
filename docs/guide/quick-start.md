@@ -62,10 +62,12 @@ logger.error('Giving up on database. Exiting.');
 ```
 
 ```
-[12:00:01] INFO: Database connection failed (x2)
-    repeats: 2
-[12:00:01] ERROR: Giving up on database. Exiting.
+[12:00:01.123] INFO (4242): Database connection failed (x3)
+    repeats: 3
+[12:00:01.124] ERROR (4242): Giving up on database. Exiting.
 ```
+
+Timestamps and the process id will differ on your machine.
 
 See [Pipeline mode](/guide/pipeline) for details.
 

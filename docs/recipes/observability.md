@@ -26,17 +26,36 @@ options: {
 }
 ```
 
-## Rate of collapsed bytes
+## Approximate bytes saved
 
 ```ts
 options: {
   onFlush: (log, meta) => {
     if (meta.repeats > 1) {
-      metrics.counter('log.collapsed.bytes', JSON.stringify(log).length);
+      const lineBytes = Buffer.byteLength(JSON.stringify(log));
+      metrics.counter('log.bytes.saved', lineBytes * (meta.repeats - 1));
     }
   },
 }
 ```
+
+## Alert on a noisy loop
+
+```ts
+options: {
+  onFlush: (log, meta) => {
+    if (meta.repeats >= 1000) {
+      alerts.notify(`log repeated ${meta.repeats} times: ${log.msg}`);
+    }
+  },
+}
+```
+
+## What the hook receives
+
+- It runs for every flushed record. `meta.repeats` is `1` for a record that never repeated.
+- It does not run for records of an [excluded level](/guide/excluded-levels).
+- `log` is the exact object that is written next. Changes you make to it (adding, editing, or deleting fields) appear in the output.
 
 ## Hook safety
 

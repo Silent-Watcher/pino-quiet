@@ -1,6 +1,6 @@
 # Configuration defaults
 
-Defaults live in `src/constants.ts` and are pinned by tests. When an option is omitted, behavior matches this table exactly.
+Defaults live in `src/constants.ts` (plus `resolveOptions` in `src/utils.ts` for `suffixFormat`) and are pinned by tests. When an option is omitted, behavior matches this table exactly.
 
 | Option | Default | Notes |
 | --- | --- | --- |
@@ -26,4 +26,4 @@ Defaults live in `src/constants.ts` and are pinned by tests. When an option is o
 
 ## Historical note
 
-`flushIntervalMs` defaulted to disabled (behaving like `0`) before 1.0.0. Since 1.0.0 it defaults to `5000`; set `flushIntervalMs: 0` to restore the old timing. See [Migrating from 0.9.x](/migration/from-0-x).
+`flushIntervalMs` defaulted to disabled (behaving like `0`) before 1.0.0. Since 1.0.0 it defaults to `5000`; set `flushIntervalMs: 0` to restore the old timing. See [Migrating from 0.9.x](/migration/from-0.x).

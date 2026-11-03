@@ -11,6 +11,10 @@ const logger = pino({
 });
 ```
 
+::: warning Unreleased
+`excludeLevels` is on `master` and not part of the releases up to and including 1.0.1.
+:::
+
 ## Behavior
 
 For this input with `excludeLevels: [50]`:
@@ -42,3 +46,11 @@ Levels are matched by strict numeric equality against the record's `level` field
 ## Validation
 
 The option must be an array of numbers; non-arrays, non-number entries, and `NaN` throw a `TypeError` at construction. An empty array is valid and means "exclude nothing".
+
+## Protecting errors on a hard kill
+
+Excluded records are never buffered, so they cannot be waiting in memory when the process is killed. `excludeLevels: [50, 60]` (error and fatal) is a good default for services. See [Shutdown & durability](/guide/shutdown).
+
+## Level labels
+
+Only numbers match. If `level` reaches pino-quiet as a string (for example `"error"`), the record is not excluded and is deduplicated as usual.

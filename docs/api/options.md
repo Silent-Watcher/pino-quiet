@@ -9,7 +9,7 @@ All options are optional. Every default is verified against the implementation; 
 | `countField` | `string` | `'repeats'` | Field receiving the total occurrence count. |
 | `ignoreKeys` | `string[]` | built-ins merged | Extra fields excluded from strict comparison. Merged with `time`, `pid`, `hostname`. |
 | `comparator` | `(prev, curr) => boolean` | — | Custom equality; overrides strict/simple. `levelAware` still runs first. Direct invocation only. |
-| `excludeLevels` | `number[]` | — | Numeric levels that bypass deduplication entirely. |
+| `excludeLevels` | `number[]` | — | Numeric levels that bypass deduplication entirely. Unreleased. |
 | `levelAware` | `boolean` | `false` | Different `level` values are never duplicates. |
 | `caseInsensitive` | `boolean` | `false` | Case-insensitive `msg` comparison (simple mode only). |
 | `maxRepeats` | `number` | `Infinity` | Force-flush when a batch reaches this many total occurrences. `Infinity` disables. |
@@ -32,6 +32,15 @@ All options are optional. Every default is verified against the implementation; 
 - `maxRepeats: N` flushes when total occurrences reach `N`.
 - `minRepeatsToAnnotate: N` suppresses annotation when the total is below `N`; timestamps (if enabled) are still added.
 - A single, never-repeated record is emitted untouched (no count field, no suffix).
+
+## Details worth knowing
+
+- `maxRepeats`: the check runs when a duplicate arrives, so `1` and `2` behave the same (batches of 2). See [Batching & flushing](/guide/flushing).
+- `flushIntervalMs` is an idle timer reset by every record, duplicates included.
+- `includeTimestamps`: `firstSeen` / `lastSeen` are the times pino-quiet received the records, not Pino's `time` field.
+- `onFlush` is called for **every** flushed record (`meta.repeats` is `1` for single records), but not for excluded levels. It receives the exact object that is serialized, so mutating it changes the output.
+- `minRepeatsToAnnotate` does not stop duplicates from being collapsed; it only hides the count. See [Limitations](/guide/limitations#min-repeats-hides-counts).
+- `excludeLevels` is not in releases up to and including 1.0.1.
 
 ## Flush triggers
 

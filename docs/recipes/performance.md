@@ -23,6 +23,7 @@ Measured on Node v24, pino 10, 100k lines per scenario, median of 3 runs:
 
 ## When to worry
 
+- pino-quiet does not apply backpressure. A destination that stays slower than your log volume accumulates data in SonicBoom's memory buffer. See [Limitations](/guide/limitations).
 - Synchronous direct-mode writes flood Pino's `split2` input stream (~16k lines/s upstream), independent of pino-quiet. Worker transports are unaffected.
 - `sync: true` writes each line to disk synchronously and is inherently slower.
 - Very large records (>10KB) push serialization cost up linearly.

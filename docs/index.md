@@ -3,6 +3,10 @@ layout: home
 
 hero:
   name: pino-quiet
+  text: Quiet your Pino logs
+  image:
+    src: /logo.svg
+    alt: pino-quiet
   tagline: A lightweight Pino transport that collapses repeated consecutive log messages into a single entry with a repetition counter.
   actions:
     - theme: brand
@@ -33,5 +37,5 @@ features:
     details: excludeLevels lets errors and other critical levels bypass deduplication entirely, one entry per record.
   - icon: 📦
     title: Fully typed
-    details: First-class TypeScript definitions, ESM-only, native require(esm) interop on Node.js >= 22.12.
+    details: First-class TypeScript definitions, ESM-only, native require(esm) interop on Node.js 20.19+ and 22.12+.
 ---

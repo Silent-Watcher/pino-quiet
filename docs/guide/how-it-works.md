@@ -14,6 +14,8 @@ Pino → worker thread → pino-quiet → [Deduper: compare → buffer → flush
 4. **No match:** the buffered batch is flushed (annotated with its final count) and the new record takes its place in the buffer.
 5. On shutdown, whatever is still buffered is flushed — no log is ever lost.
 
+Only one batch is buffered at a time, and the buffered record is the **first** one of the batch. Later duplicates only increase the counter.
+
 ## When a batch flushes
 
 A buffered batch is flushed when any of these happens:
@@ -39,8 +41,10 @@ The record is then serialized to NDJSON and written to the destination or pushed
 
 - The flush timer is unref'd and cleared on every state change and on teardown.
 - Destination errors are reported on `stderr` instead of crashing the process.
-- A destroyed or errored pipeline never silently discards the buffered log — it is emitted to `stderr` when downstream delivery is no longer possible.
+- A destroyed or errored pipeline never silently discards the buffered log — it is emitted to `stderr` when downstream delivery is no longer possible. See [Shutdown & durability](/guide/shutdown).
 - Excluded levels ([`excludeLevels`](/guide/excluded-levels)) bypass this machinery entirely and are written straight through.
+
+For timing details see [Batching & flushing](/guide/flushing); for the exact shape of the emitted line see [Output format](/guide/output-format).
 
 ## Repeat-count semantics
 

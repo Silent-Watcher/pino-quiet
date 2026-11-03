@@ -2,11 +2,13 @@ import { defineConfig } from 'vitepress';
 import pkg from '../../package.json' with { type: 'json' };
 
 const repo = 'https://github.com/Silent-Watcher/pino-quiet';
+const siteUrl = 'https://silent-watcher.github.io/pino-quiet/';
+const description =
+	'A lightweight Pino transport that collapses repeated consecutive log messages.';
 
 export default defineConfig({
 	title: 'pino-quiet',
-	description:
-		'A lightweight Pino transport that collapses repeated consecutive log messages.',
+	description,
 	head: [
 		[
 			'link',
@@ -16,9 +18,19 @@ export default defineConfig({
 				type: 'image/svg+xml',
 			},
 		],
+		['meta', { name: 'theme-color', content: '#1e293b' }],
+		['meta', { property: 'og:type', content: 'website' }],
+		['meta', { property: 'og:title', content: 'pino-quiet' }],
+		['meta', { property: 'og:description', content: description }],
+		['meta', { property: 'og:url', content: siteUrl }],
+		['meta', { property: 'og:image', content: `${siteUrl}og-image.png` }],
+		['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+		['meta', { name: 'twitter:image', content: `${siteUrl}og-image.png` }],
 	],
 	base: '/pino-quiet/',
 	lang: 'en-US',
+	lastUpdated: true,
+	sitemap: { hostname: siteUrl },
 
 	themeConfig: {
 		logo: '/logo.svg',
@@ -66,17 +78,22 @@ export default defineConfig({
 						text: 'Comparison modes',
 						link: '/guide/comparison-modes',
 					},
+					{ text: 'Output format', link: '/guide/output-format' },
+					{ text: 'Batching & flushing', link: '/guide/flushing' },
 					{ text: 'Excluded levels', link: '/guide/excluded-levels' },
 					{ text: 'Pipeline mode', link: '/guide/pipeline' },
 					{
 						text: 'Pino integration & workers',
 						link: '/guide/pino-integration',
 					},
+					{ text: 'Shutdown & durability', link: '/guide/shutdown' },
+					{ text: 'Limitations', link: '/guide/limitations' },
 				],
 			},
 			{
 				text: 'Reference',
 				items: [
+					{ text: 'pinoQuiet()', link: '/api/factory' },
 					{ text: 'Options', link: '/api/options' },
 					{ text: 'Types', link: '/api/types' },
 					{ text: 'Configuration defaults', link: '/api/defaults' },
@@ -108,18 +125,29 @@ export default defineConfig({
 			},
 			{
 				text: 'Migration',
-				items: [{ text: 'From 0.9.x', link: '/migration/from-0.x' }],
+				items: [
+					{ text: 'From 0.9.x', link: '/migration/from-0.x' },
+					{ text: 'From 1.0.x', link: '/migration/from-1.x' },
+				],
 			},
 			{
 				text: 'Contributing',
 				items: [
 					{ text: 'Development', link: '/contributing/development' },
 					{ text: 'Testing', link: '/contributing/testing' },
+					{
+						text: 'Documentation',
+						link: '/contributing/documentation',
+					},
 				],
 			},
 		],
 		search: {
 			provider: 'local',
+		},
+		editLink: {
+			pattern: `${repo}/edit/master/docs/:path`,
+			text: 'Edit this page on GitHub',
 		},
 		socialLinks: [{ icon: 'github', link: repo }],
 		footer: {

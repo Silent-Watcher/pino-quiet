@@ -7,6 +7,8 @@
 3. **`strict` deep comparison** — when `strict: true`, the entire record objects are compared with deep equality, excluding the volatile fields `time`, `pid`, `hostname` plus any extra `ignoreKeys`.
 4. **Simple comparison** (default) — only the `msg` string is compared. When `msg` is missing or not a string on either side, deep equality of the `msg` values is used instead. `caseInsensitive: true` lowercases both sides first (simple mode only).
 
+Records of an [excluded level](/guide/excluded-levels) skip comparison entirely.
+
 ## Simple (default)
 
 Fastest mode. Two records are duplicates when their `msg` strings are equal — metadata differences are ignored:
@@ -18,8 +20,14 @@ options: { strict: false } // default
 ```js
 logger.info({ requestId: 1 }, 'Request processed');
 logger.info({ requestId: 2 }, 'Request processed');
-// → collapses to one "Request processed (x2)" record
+// → {"requestId":1,"msg":"Request processed (x2)","repeats":2}
 ```
+
+The emitted record is the **first** one, so `requestId: 2` is not kept. See [Output format](/guide/output-format).
+
+::: warning Records without `msg`
+In simple mode, two records that both lack `msg` are treated as duplicates whatever else they contain, so `logger.info({ userId: 1 })` followed by `logger.info({ userId: 2 })` collapse and `userId: 2` is lost. Use `strict: true` or a `comparator` for such logs. See [Limitations](/guide/limitations#no-msg).
+:::
 
 ## Strict
 
@@ -41,6 +49,14 @@ logger.error({ id: 2 }, 'Transaction failed'); // different id → new batch
 options: { strict: true, ignoreKeys: ['requestId', 'traceId'] }
 ```
 
+## Case-insensitive messages
+
+```ts
+options: { caseInsensitive: true } // simple mode only
+```
+
+`"Retrying"` and `"retrying"` collapse. The option has no effect with `strict` or a `comparator`.
+
 ## Custom comparator
 
 Complete control, direct factory invocation only (see [Pino integration & workers](/guide/pino-integration)):
@@ -51,6 +67,23 @@ options: {
 }
 ```
 
+Things to know:
+
+- `previous` is always the **first** record of the pending batch, not the most recent duplicate.
+- The comparator is not called when nothing is buffered, nor for excluded levels.
+- It can return `false` to opt specific records out of collapsing. This collapses only chosen messages:
+
+```ts
+const noisy = new Set(['Connecting...']);
+
+options: {
+  comparator: (previous, current) =>
+    noisy.has(current.msg) && previous.msg === current.msg,
+}
+```
+
+`Connecting...` repeats collapse into `Connecting... (x2)`, while other messages pass through one by one.
+
 ## Level awareness
 
 Prevents an `info` and an `error` that share text from collapsing together:
@@ -58,3 +91,5 @@ Prevents an `info` and an `error` that share text from collapsing together:
 ```ts
 options: { levelAware: true }
 ```
+
+The gate also applies when a `comparator` is set: with `levelAware: true`, records at different levels are never duplicates, even if the comparator always returns `true`.
