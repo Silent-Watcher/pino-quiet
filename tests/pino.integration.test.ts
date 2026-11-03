@@ -36,7 +36,7 @@ afterEach(() => {
 function runWorkerTarget(options: Record<string, unknown>) {
 	const dest = tempPath();
 	const transport = pino.transport({
-		target: 'pino-quiet',
+		target: new URL('../dist/index.js', import.meta.url).pathname,
 		options: { ...options, destination: dest },
 	});
 	const logger = pino(transport);
@@ -56,7 +56,7 @@ describe('real Pino worker transport (destination mode)', () => {
 	it('collapses consecutive duplicates end-to-end through a worker thread', async () => {
 		const dest = tempPath();
 		const transport = pino.transport({
-			target: 'pino-quiet',
+			target: new URL('../dist/index.js', import.meta.url).pathname,
 			options: { destination: dest, flushIntervalMs: 0 },
 		});
 		const logger = pino(transport);
@@ -81,7 +81,7 @@ describe('real Pino worker transport (destination mode)', () => {
 	it('flushes a trailing repeated log on graceful shutdown (default flushIntervalMs)', async () => {
 		const dest = tempPath();
 		const transport = pino.transport({
-			target: 'pino-quiet',
+			target: new URL('../dist/index.js', import.meta.url).pathname,
 			options: { destination: dest },
 		});
 		const logger = pino(transport);
@@ -100,7 +100,7 @@ describe('real Pino worker transport (destination mode)', () => {
 	it('supports strict comparison through serialized worker options', async () => {
 		const dest = tempPath();
 		const transport = pino.transport({
-			target: 'pino-quiet',
+			target: new URL('../dist/index.js', import.meta.url).pathname,
 			options: { destination: dest, strict: true, flushIntervalMs: 0 },
 		});
 		const logger = pino(transport);
@@ -121,7 +121,7 @@ describe('real Pino worker transport (destination mode)', () => {
 	it('supports ignoreKeys and includeTimestamps through serialized worker options', async () => {
 		const dest = tempPath();
 		const transport = pino.transport({
-			target: 'pino-quiet',
+			target: new URL('../dist/index.js', import.meta.url).pathname,
 			options: {
 				destination: dest,
 				strict: true,
@@ -154,7 +154,8 @@ describe('real Pino pipeline transports', () => {
 		const transport = pino.transport({
 			pipeline: [
 				{
-					target: 'pino-quiet',
+					target: new URL('../dist/index.js', import.meta.url)
+						.pathname,
 					options: { pipeline: true, flushIntervalMs: 0 },
 				},
 				{ target: 'pino/file', options: { destination: dest } },
@@ -180,7 +181,8 @@ describe('real Pino pipeline transports', () => {
 		const transport = pino.transport({
 			pipeline: [
 				{
-					target: 'pino-quiet',
+					target: new URL('../dist/index.js', import.meta.url)
+						.pathname,
 					options: { pipeline: true, flushIntervalMs: 0 },
 				},
 				{
@@ -216,7 +218,8 @@ describe('worker-thread serialization compatibility', () => {
 		] as const) {
 			expect(() =>
 				pino.transport({
-					target: 'pino-quiet',
+					target: new URL('../dist/index.js', import.meta.url)
+						.pathname,
 					options: { [option]: value },
 				}),
 			).toThrow(/could not be cloned/);

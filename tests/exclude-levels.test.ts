@@ -261,7 +261,7 @@ describe('excludeLevels (integration)', () => {
 	it('works through a real Pino worker transport with serialized options', async () => {
 		const dest = tempPath();
 		const transport = pino.transport({
-			target: 'pino-quiet',
+			target: new URL('../dist/index.js', import.meta.url).pathname,
 			options: {
 				destination: dest,
 				excludeLevels: [50],
