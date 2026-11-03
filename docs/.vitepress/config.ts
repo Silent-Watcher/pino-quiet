@@ -27,7 +27,7 @@ export default defineConfig({
 		['meta', { name: 'twitter:card', content: 'summary_large_image' }],
 		['meta', { name: 'twitter:image', content: `${siteUrl}og-image.png` }],
 	],
-	base: '/pino-quiet/',
+	base: '/',
 	lang: 'en-US',
 	lastUpdated: true,
 	sitemap: { hostname: siteUrl },
