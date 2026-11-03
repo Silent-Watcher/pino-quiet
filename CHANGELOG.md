@@ -67,6 +67,10 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### 💼 Changed
 
+- Added `scripts/benchmark.mjs` (dev-only): deterministic benchmark harness
+  covering worker end-to-end, comparison-mode microbenchmarks, metadata
+  sizes, flush intervals, high volume, and pipeline mode; results and
+  methodology in `bench/README.md`. No runtime behavior change.
 - Node.js engine floor lowered from `>=v22.18.0` to `>=20.0.0` to match
   the actual runtime requirements (no Node 22+ API is used; Pino's own
   `thread-stream` dependency is the floor). Backward-compatible.
