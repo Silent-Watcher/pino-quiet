@@ -7,9 +7,8 @@
     <a href="#features">Features</a> •
     <a href="#installation">Installation</a> •
     <a href="#quick-start">Quick start</a> •
-    <a href="#options">Options</a> •
-    <a href="#composing-with-other-transports">pino-pretty &amp; other transports</a> •
-    <a href="#migrating-from-09x">Migrating from 0.9.x</a>
+    <a href="#pino-pretty-and-other-transports">pino-pretty &amp; other transports</a> •
+    <a href="#documentation">Documentation</a>
   </p>
 
   <p>
@@ -108,154 +107,43 @@ logger.error({ id: 1 }, 'Transaction failed');
 logger.error({ id: 1 }, 'Transaction failed');
 ```
 
-## Options
+## pino-pretty and other transports
 
-| Option                 | Type                                          | Default                | Description                                                                                       |
-| ----------------------- | --------------------------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------- |
-| `destination`           | `string \| number`                            | `1` (stdout)            | Destination fd or file path. Ignored when `pipeline: true`.                                        |
-| `strict`                | `boolean`                                     | `false`                 | Compare the whole log object (minus `ignoreKeys`) instead of just `msg`.                            |
-| `countField`            | `string`                                      | `'repeats'`             | Field name used to store the total occurrence count.                                                |
-| `ignoreKeys`            | `string[]`                                    | `[]` (merged with built-ins) | Extra fields excluded from `strict` comparisons. Merged with `time`/`pid`/`hostname`, never replaces them. |
-| `comparator`            | `(prev, curr) => boolean`                     | —                       | Custom equality function; overrides `strict`/simple logic entirely when provided.                   |
-| `levelAware`            | `boolean`                                     | `false`                 | If `true`, logs at different `level`s are never treated as duplicates.                              |
-| `caseInsensitive`       | `boolean`                                     | `false`                 | Case-insensitive `msg` comparison (simple mode only).                                                |
-| `maxRepeats`            | `number`                                      | `Infinity`              | Force-flush after this many repeats, even without a new/different log arriving.                     |
-| `flushIntervalMs`       | `number`                                      | `5000`                  | Auto-flush a buffered log after this many ms of silence. `0` disables this (matches pre-1.0 behavior). |
-| `minRepeatsToAnnotate`  | `number`                                      | `1`                     | Only annotate `msg`/`countField` once the repeat count reaches this value.                          |
-| `annotateMessage`       | `boolean`                                     | `true`                  | If `false`, only `countField` is set; `msg` is left untouched.                                       |
-| `suffixFormat`          | `(count: number) => string`                   | `` (count) => ` (x${count})` `` | Customize the suffix appended to `msg`.                                                              |
-| `includeTimestamps`     | `boolean`                                     | `false`                 | Add first/last-seen epoch-ms timestamps to every flushed log.                                       |
-| `firstSeenField`        | `string`                                      | `'firstSeen'`           | Field name for the first-seen timestamp (requires `includeTimestamps`).                              |
-| `lastSeenField`         | `string`                                      | `'lastSeen'`            | Field name for the last-seen timestamp (requires `includeTimestamps`).                                |
-| `onFlush`               | `(log, meta) => void`                         | —                       | Called on every flush with the emitted log and `{ repeats, firstSeen, lastSeen }`. Never throws. Worker transport: not serializable. |
-| `excludeLevels`         | `number[]`                                    | —                       | Numeric levels that bypass deduplication entirely: emitted immediately, untouched, in order. |
-| `pipeline`              | `boolean`                                     | `false`                 | Pass-through Transform mode for composing with other transports (see below).                        |
-| `mkdir`                 | `boolean`                                     | `false`                 | Passed through to `SonicBoom` (destination mode only).                                              |
-| `append`                | `boolean`                                     | `true`                  | Passed through to `SonicBoom` (destination mode only).                                              |
-| `sync`                  | `boolean`                                     | `false`                 | Passed through to `SonicBoom` (destination mode only).                                              |
-
-## How it works
-
-- `pino-quiet` buffers the most recently seen log.
-- When a new log arrives, it's compared against the buffered one using `comparator` (if given), otherwise `strict`/simple matching.
-- **Match:** the counter increments; nothing is written yet.
-- **No match** (or the buffered log has sat idle past `flushIntervalMs`, or hit `maxRepeats`): the buffered log is flushed (annotated with its final count) and the new log takes its place.
-- On stream shutdown, whatever is still buffered is flushed so no log is ever lost.
-
-## Composing with other transports
-
-By default (`pipeline` not set), pino-quiet is a **terminal** transport: it owns its destination and writes directly to it, exactly like in the Quick start examples above. That's the simplest setup and is unchanged from 0.9.x.
-
-To place pino-quiet *before* another transport — most commonly `pino-pretty` — set `pipeline: true`. This turns it into a plain pass-through stream that emits deduplicated NDJSON for the next stage to consume, instead of writing anywhere itself:
+Set `pipeline: true` to place pino-quiet *before* another transport such as `pino-pretty`:
 
 ```ts
-import pino from 'pino';
-
 const logger = pino({
   transport: {
     pipeline: [
-      {
-        target: 'pino-quiet',
-        options: { pipeline: true, flushIntervalMs: 2000 },
-      },
-      {
-        target: 'pino-pretty',
-        options: { colorize: true },
-      },
+      { target: 'pino-quiet', options: { pipeline: true } },
+      { target: 'pino-pretty', options: { colorize: true } },
     ],
   },
 });
-
-logger.info('Database connection failed');
-logger.info('Database connection failed');
-logger.info('Database connection failed');
-logger.error('Giving up on database. Exiting.');
 ```
 
-```
-[12:00:01] INFO: Database connection failed (x3)
-    repeats: 3
-[12:00:01] ERROR: Giving up on database. Exiting.
-```
-
-This works with any transport that can be a pipeline stage, not just `pino-pretty` — for example shipping the collapsed stream on to a log-forwarding transport. See `example/pipeline-with-pino-pretty.ts` for a runnable copy of this example.
-
-> **Note:** `destination`, `mkdir`, `append`, and `sync` are ignored in pipeline mode — the *last* stage in the pipeline is responsible for the actual destination.
-
-## Worker transport and callback options
-
-Pino serializes transport options with the Structured Clone algorithm before passing them to a worker thread. This means:
-
-- **All plain-data options work everywhere**: `strict`, `countField`, `ignoreKeys`, `levelAware`, `caseInsensitive`, `maxRepeats`, `flushIntervalMs`, `minRepeatsToAnnotate`, `annotateMessage`, `includeTimestamps`, `firstSeenField`, `lastSeenField`, `destination`, `pipeline`, `mkdir`, `append`, `sync` — in both standard `pino({ transport: { target: 'pino-quiet' } })` usage and direct factory invocation.
-- **Callback options only work with direct factory invocation**: `comparator`, `suffixFormat`, and `onFlush` are functions and cannot be serialized. Passing them via `pino({ transport: { target: 'pino-quiet', options: { ... } } })` throws `could not be cloned`. To use callbacks, build the transport yourself and hand it to pino:
+Never collapse selected levels (for example errors) with `excludeLevels`:
 
 ```ts
-import { once } from 'node:events';
-import pino from 'pino';
-import pinoQuiet from 'pino-quiet';
-
-const transport = await pinoQuiet({
-  destination: './app.log',
-  onFlush: (log, meta) => metrics.histogram('log.repeats', meta.repeats),
-});
-
-const logger = pino(transport);
-```
-
-- **`require()` interop**: the package is ESM-only. On Node.js `>= 22.12`, `require('pino-quiet')` works via native `require(esm)` support; on older Node versions, use `import`.
-
-## Migrating from 0.9.x
-
-1. **The stray `]` bug is fixed.** If you had a workaround stripping a trailing `]` from pino-quiet's output, remove it.
-2. **`flushIntervalMs` now defaults to `5000`**, not disabled. If your tests or tooling depend on the exact pre-1.0 timing (never auto-flush), set `flushIntervalMs: 0`.
-3. Everything else is additive — no other option names or defaults changed.
-
-## Recipes
-
-<details>
-<summary>Never collapse errors with info logs that share text</summary>
-
-```ts
-options: { levelAware: true }
-```
-</details>
-
-<details>
-<summary>Deduplicate ignoring a request-scoped field</summary>
-
-```ts
-options: { strict: true, ignoreKeys: ['requestId', 'traceId'] }
-```
-</details>
-
-<details>
-<summary>Track collapse events in your own metrics</summary>
-
-```ts
-options: {
-  onFlush: (log, meta) => {
-    metrics.histogram('log.repeats', meta.repeats);
-  },
-}
-```
-</details>
-
-<details>
-<summary>Cap runaway hot loops</summary>
-
-```ts
-options: { maxRepeats: 500, flushIntervalMs: 1000 }
-```
-</details>
-
-<details>
-<summary>Never collapse errors — let them through one by one</summary>
-
-```ts
-// standard Pino error level is 50; custom numeric levels work too
 options: { excludeLevels: [50] }
 ```
-</details>
+
+## Most used options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `strict` | `false` | Compare the whole log object instead of only `msg`. |
+| `levelAware` | `false` | Never collapse records with different levels. |
+| `flushIntervalMs` | `5000` | Flush a repeated log after this many ms of silence. `0` disables. |
+| `maxRepeats` | `Infinity` | Force-flush after this many occurrences. |
+| `excludeLevels` | — | Numeric levels that bypass deduplication. |
+| `destination` | `1` (stdout) | File path or fd (ignored when `pipeline: true`). |
+
+`comparator`, `suffixFormat`, and `onFlush` are functions, so they cannot be passed through Pino's `transport.target`; call `await pinoQuiet(options)` directly instead.
+
+## Documentation
+
+Guides, the full options reference, recipes, troubleshooting, and migration notes live at **[https://silent-watcher.github.io/pino-quiet/](https://silent-watcher.github.io/pino-quiet/)**. The sources are in [`docs/`](docs/).
 
 ## Contributing
 

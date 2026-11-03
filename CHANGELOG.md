@@ -82,6 +82,10 @@ This project follows [Semantic Versioning](https://semver.org/).
   badge-committing pushes from CI. The Dependabot config file was renamed
   to the recognized lowercase filename with invalid keys removed.
 
+### 📚 Docs
+
+- Added a VitePress documentation site (`docs/`, scripts `docs:dev`, `docs:build`, `docs:preview`) covering guides, API reference, recipes, troubleshooting, migration notes, and contributor docs. The readme now keeps the essentials and links to the site.
+
 ## [1.0.0]
 
 ### 🚨 Fixed (was silently corrupting output)
