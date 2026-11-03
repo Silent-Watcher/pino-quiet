@@ -130,6 +130,16 @@ export interface PinoQuietOptions {
 	onFlush?: (log: LogRecord, meta: FlushMeta) => void;
 
 	/**
+	 * Numeric Pino levels that bypass deduplication entirely. Records whose
+	 * `level` equals one of these numbers are emitted immediately, untouched
+	 * (no annotation, no timestamps, not passed to `onFlush`), and never
+	 * buffered. Any pending buffered batch is flushed first, so output order
+	 * is preserved; the next non-excluded log starts a fresh batch.
+	 * Defaults to `undefined` (no exclusions, unchanged behavior).
+	 */
+	excludeLevels?: number[];
+
+	/**
 	 * Enables pass-through pipeline mode: instead of writing to its own
 	 * `destination`, pino-quiet becomes a Transform stream that yields
 	 * deduplicated NDJSON downstream. Use this to place pino-quiet *before*
@@ -152,6 +162,7 @@ export interface ResolvedOptions {
 	countField: string;
 	ignoreKeys: string[];
 	comparator?: (previous: LogRecord, current: LogRecord) => boolean;
+	excludeLevels?: number[];
 	levelAware: boolean;
 	caseInsensitive: boolean;
 	maxRepeats: number;

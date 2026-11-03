@@ -39,6 +39,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- **`excludeLevels?: number[]`** — numeric Pino levels that bypass
+  deduplication entirely. Records whose `level` matches one of the given
+  numbers are emitted immediately, completely untouched (no annotation, no
+  timestamps, not passed to `onFlush`), and never buffered. Any pending
+  batch is flushed first so output order is preserved, excluded records do
+  not touch repeat counters, and the next non-excluded log starts a fresh
+  batch. Works in destination mode, pipeline mode, and through serialized
+  Pino worker-transport options. Records without a numeric `level` are
+  never excluded. Opt-in: behavior is unchanged unless the option is set.
 - Real Pino integration test suite: worker-transport destination mode,
   pipeline with `pino/file` and `pino-pretty`, worker serialization
   compatibility matrix (plain-data options must clone; callback options

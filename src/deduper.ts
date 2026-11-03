@@ -26,6 +26,19 @@ export class Deduper {
 	ingest(obj: LogRecord): void {
 		const now = Date.now();
 
+		if (
+			this.opts.excludeLevels?.length &&
+			this.opts.excludeLevels.includes(obj.level)
+		) {
+			// Excluded levels bypass deduplication entirely: flush the pending
+			// batch first (preserving output order), then emit the record
+			// untouched. Excluded records never touch the repeat counter, and
+			// the next non-excluded log starts a fresh batch.
+			this.flush();
+			this.emit(`${JSON.stringify(obj)}\n`);
+			return;
+		}
+
 		let duplicate = false;
 		if (this.bufferedLog) {
 			try {

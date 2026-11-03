@@ -78,6 +78,18 @@ export function resolveOptions(opts: PinoQuietOptions = {}): ResolvedOptions {
 			);
 		}
 	}
+	if (opts.excludeLevels !== undefined) {
+		if (
+			!Array.isArray(opts.excludeLevels) ||
+			opts.excludeLevels.some(
+				(level) => typeof level !== 'number' || Number.isNaN(level),
+			)
+		) {
+			throw new TypeError(
+				'pino-quiet: `excludeLevels` must be an array of numbers (NaN is not allowed)',
+			);
+		}
+	}
 	for (const name of [
 		'countField',
 		'firstSeenField',
@@ -106,6 +118,7 @@ export function resolveOptions(opts: PinoQuietOptions = {}): ResolvedOptions {
 		countField: opts.countField ?? DEFAULTS.countField,
 		ignoreKeys,
 		comparator: opts.comparator,
+		excludeLevels: opts.excludeLevels,
 		levelAware: opts.levelAware ?? DEFAULTS.levelAware,
 		caseInsensitive: opts.caseInsensitive ?? DEFAULTS.caseInsensitive,
 		maxRepeats: opts.maxRepeats ?? DEFAULTS.maxRepeats,

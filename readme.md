@@ -46,6 +46,7 @@ It improves readability, cuts storage/ingestion costs, and requires zero changes
 - **Level-aware matching** — optionally never collapse an `info` and an `error` that happen to share text.
 - **Pluggable equality** — bring your own `comparator` for full control over what counts as "the same log".
 - **Observability hook** — `onFlush` lets you feed collapse events into your own metrics.
+- **Level exclusions** — `excludeLevels` lets selected numeric levels (e.g. errors) bypass deduplication entirely.
 - **Fully typed** — first-class TypeScript definitions ship with the package.
 
 ## Installation
@@ -126,7 +127,8 @@ logger.error({ id: 1 }, 'Transaction failed');
 | `includeTimestamps`     | `boolean`                                     | `false`                 | Add first/last-seen epoch-ms timestamps to every flushed log.                                       |
 | `firstSeenField`        | `string`                                      | `'firstSeen'`           | Field name for the first-seen timestamp (requires `includeTimestamps`).                              |
 | `lastSeenField`         | `string`                                      | `'lastSeen'`            | Field name for the last-seen timestamp (requires `includeTimestamps`).                                |
-| `onFlush`               | `(log, meta) => void`                         | —                       | Called on every flush with the emitted log and `{ repeats, firstSeen, lastSeen }`. Never throws.    |
+| `onFlush`               | `(log, meta) => void`                         | —                       | Called on every flush with the emitted log and `{ repeats, firstSeen, lastSeen }`. Never throws. Worker transport: not serializable. |
+| `excludeLevels`         | `number[]`                                    | —                       | Numeric levels that bypass deduplication entirely: emitted immediately, untouched, in order. |
 | `pipeline`              | `boolean`                                     | `false`                 | Pass-through Transform mode for composing with other transports (see below).                        |
 | `mkdir`                 | `boolean`                                     | `false`                 | Passed through to `SonicBoom` (destination mode only).                                              |
 | `append`                | `boolean`                                     | `true`                  | Passed through to `SonicBoom` (destination mode only).                                              |
@@ -243,6 +245,15 @@ options: {
 
 ```ts
 options: { maxRepeats: 500, flushIntervalMs: 1000 }
+```
+</details>
+
+<details>
+<summary>Never collapse errors — let them through one by one</summary>
+
+```ts
+// standard Pino error level is 50; custom numeric levels work too
+options: { excludeLevels: [50] }
 ```
 </details>
 
