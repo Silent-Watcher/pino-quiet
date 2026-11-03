@@ -13,6 +13,12 @@ export type {
 } from './types.ts';
 
 /**
+ * Symbol property on the pipeline-mode transport holding the internal
+ * collapsing Transform (the readable side of the returned Duplex).
+ */
+export const INTERNAL_TRANSFORM = Symbol('pino-quiet.internalTransform');
+
+/**
  * Builds a "terminal" transport: pino-quiet owns a SonicBoom destination and
  * writes collapsed NDJSON lines directly to it. This is the classic,
  * backward-compatible mode (`{ target: 'pino-quiet' }` as the whole
@@ -77,8 +83,18 @@ function buildPipelineTransform(opts: ReturnType<typeof resolveOptions>) {
 	// Declared before the Deduper so its emit callback can close over it —
 	// it is only ever invoked after `transform` has been assigned below.
 	let transform!: Transform;
+	// Set once the transport is closing: from that point downstream delivery
+	// is no longer guaranteed, so pending logs go to stderr instead of being
+	// pushed into a stream that is about to be destroyed.
+	let closing = false;
 
 	const deduper = new Deduper(opts, (line) => {
+		if (closing || transform.destroyed) {
+			process.stderr.write(
+				`pino-quiet: pipeline closed with a buffered log pending; emitting to stderr: ${line}`,
+			);
+			return;
+		}
 		transform.push(line);
 	});
 
@@ -95,7 +111,7 @@ function buildPipelineTransform(opts: ReturnType<typeof resolveOptions>) {
 		},
 	});
 
-	return build(
+	const transport = build(
 		(source) => {
 			streamPipeline(source, transform, () => {
 				/* errors, if any, surface via the transform's own 'error' event */
@@ -105,11 +121,24 @@ function buildPipelineTransform(opts: ReturnType<typeof resolveOptions>) {
 		{
 			enablePipelining: true,
 			close(_err, callback) {
+				// The transform's `flush` only runs on a normal end; on the error /
+				// destroy path this is the last chance to emit the buffered log.
+				closing = true;
+				deduper.flush();
 				deduper.destroy();
 				callback();
 			},
 		},
 	);
+
+	// Exposed for tests and advanced introspection: the actual collapsing
+	// Transform wrapped by the Duplex that `enablePipelining` returns.
+	Object.defineProperty(transport, INTERNAL_TRANSFORM, {
+		value: transform,
+		enumerable: false,
+	});
+
+	return transport;
 }
 
 export default async function pinoQuiet(

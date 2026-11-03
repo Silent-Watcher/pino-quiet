@@ -38,8 +38,14 @@ export interface PinoQuietOptions {
 
 	/**
 	 * Custom equality function. When provided, it completely overrides the
-	 * built-in `strict`/simple comparison logic. Receives the two raw,
-	 * unmodified log objects.
+	 * built-in `strict`/simple comparison logic (a `levelAware: true` level
+	 * check still runs first). Receives the two raw, unmodified log objects.
+	 *
+	 * Errors thrown by the comparator are caught and reported to `stderr`,
+	 * and the record is treated as *not* a duplicate (flushing the pending
+	 * batch) so a buggy comparator cannot crash the logging pipeline or lose
+	 * a buffered log. Note this option cannot be transferred through Pino's
+	 * worker-thread transport options (Structured Clone rejects functions).
 	 */
 	comparator?: (previous: LogRecord, current: LogRecord) => boolean;
 
@@ -91,6 +97,11 @@ export interface PinoQuietOptions {
 	 * Customize the suffix appended to `msg` when `annotateMessage` is
 	 * `true`. Receives the total occurrence count. Defaults to
 	 * `(count) => \` (x${count})\``.
+	 *
+	 * Errors thrown by the formatter are caught and reported to `stderr`,
+	 * and the log is emitted without the suffix (the count field is still
+	 * set). Cannot be transferred through Pino's worker-thread transport
+	 * options (Structured Clone rejects functions).
 	 */
 	suffixFormat?: (count: number) => string;
 
@@ -111,7 +122,10 @@ export interface PinoQuietOptions {
 	 * Called synchronously every time a (possibly collapsed) log is
 	 * flushed, right before it is written/pushed downstream. Never throws:
 	 * errors are caught and reported to `stderr` so a bad hook can't crash
-	 * the logging pipeline.
+	 * the logging pipeline. The hook receives the exact object that will be
+	 * serialized, so mutations inside the hook change the emitted output.
+	 * Cannot be transferred through Pino's worker-thread transport options
+	 * (Structured Clone rejects functions).
 	 */
 	onFlush?: (log: LogRecord, meta: FlushMeta) => void;
 

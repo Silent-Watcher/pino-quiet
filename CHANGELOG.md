@@ -3,6 +3,44 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 🚨 Fixed
+
+- **Pipeline mode no longer silently discards the buffered log on teardown.**
+  When a pipeline transport is destroyed or errors before a normal end, the
+  pending (possibly collapsed) log is now emitted to `stderr` instead of
+  being dropped. Previously it was lost on any non-normal shutdown.
+- **A throwing `comparator` no longer crashes the process.** The error is
+  caught, reported to `stderr`, and the record is treated as *not* a
+  duplicate (the pending batch is flushed) so logging continues. Previously
+  the exception propagated out of the stream as an uncaught error.
+- **A throwing `suffixFormat` no longer crashes the flush.** The error is
+  caught and reported to `stderr`, and the log is emitted without the
+  suffix (the `countField` is still set). Previously the exception
+  propagated and could abort a flush.
+- **Strict-mode records carrying an own `__proto__` key (possible via
+  `JSON.parse`) now compare correctly.** Building the comparable object
+  previously mutated the temporary object's prototype instead of copying
+  the key, changing deep-equality results. The temporary object's prototype
+  is no longer touchable.
+- **`NaN` numeric options are now rejected.** `maxRepeats: NaN` previously
+  passed validation and effectively disabled force-flushing;
+  `flushIntervalMs: NaN` reached `setTimeout`, which coerces `NaN` and
+  fires almost immediately. All three numeric options now throw a clear
+  `RangeError` for `NaN` and non-number values (`Infinity` remains valid
+  for `maxRepeats`).
+
+### ✨ Added
+
+- Construction-time validation for JS consumers bypassing the TypeScript
+  types: non-function `comparator`/`suffixFormat`/`onFlush`, non-array or
+  non-string-entry `ignoreKeys`, and empty or `__proto__` values for
+  `countField`/`firstSeenField`/`lastSeenField` now throw a `TypeError`
+  with a clear message instead of failing unpredictably later.
+- Pipeline-mode transports expose their internal collapsing Transform via
+  the exported `INTERNAL_TRANSFORM` symbol (for tests and introspection).
+
 ## [1.0.0]
 
 ### 🚨 Fixed (was silently corrupting output)

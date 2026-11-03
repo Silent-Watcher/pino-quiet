@@ -2,7 +2,7 @@ import { once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import pinoQuiet from '../src/index';
 
 function line(obj: Record<string, unknown>) {
@@ -13,6 +13,7 @@ let tmpFile: string;
 
 afterEach(() => {
 	if (tmpFile && fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+	vi.restoreAllMocks();
 });
 
 function tempPath() {
@@ -124,5 +125,88 @@ describe('destination mode (default, backward compatible)', () => {
 			.map((l) => JSON.parse(l));
 		expect(rows).toHaveLength(1);
 		expect(rows[0]).toMatchObject({ msg: 'only one' });
+	});
+
+	it('closes cleanly with sync: true (no hang, no data loss)', async () => {
+		const dest = tempPath();
+		const transport = await pinoQuiet({
+			destination: dest,
+			sync: true,
+			flushIntervalMs: 0,
+		});
+
+		transport.write(line({ msg: 'a' }));
+		transport.write(line({ msg: 'a' }));
+		transport.end();
+
+		const timeout = new Promise((_, rej) =>
+			setTimeout(() => rej(new Error('CLOSE TIMEOUT')), 5000),
+		);
+		await Promise.race([once(transport, 'close'), timeout]);
+
+		const rows = fs
+			.readFileSync(dest, 'utf8')
+			.trim()
+			.split('\n')
+			.map((l) => JSON.parse(l));
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ msg: 'a (x2)', repeats: 2 });
+	});
+
+	it('regression: destroying mid-stream still flushes the buffered log to the destination', async () => {
+		const dest = tempPath();
+		const transport = await pinoQuiet({
+			destination: dest,
+			flushIntervalMs: 0,
+		});
+
+		transport.write(line({ msg: 'a' }));
+		transport.write(line({ msg: 'a' }));
+		// Give the transport's input stream one tick to deliver the lines to
+		// the deduper (lines still sitting in the input buffer when destroy
+		// hits are dropped upstream, before pino-quiet ever sees them).
+		await new Promise((resolve) => setImmediate(resolve));
+		transport.destroy();
+		await once(transport, 'close');
+
+		const rows = fs
+			.readFileSync(dest, 'utf8')
+			.trim()
+			.split('\n')
+			.map((l) => JSON.parse(l));
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({ msg: 'a (x2)', repeats: 2 });
+	});
+
+	it('reports async destination errors on stderr instead of crashing the process', async () => {
+		// A directory path cannot be opened for writing -> EISDIR on the
+		// async open, surfaced by SonicBoom's 'error' event.
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pino-quiet-err-'));
+		try {
+			const stderr: string[] = [];
+			const spy = vi.spyOn(process.stderr, 'write').mockImplementation(((
+				chunk: unknown,
+			) => {
+				stderr.push(String(chunk));
+				return true;
+			}) as typeof process.stderr.write);
+
+			const transport = await pinoQuiet({
+				destination: dir,
+				flushIntervalMs: 0,
+			});
+			transport.on('error', () => {});
+			transport.write(line({ msg: 'a' }));
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			expect(stderr.join('')).toContain(
+				'pino-quiet: destination write error',
+			);
+			expect(stderr.join('')).toContain('EISDIR');
+			spy.mockRestore();
+			await transport.end();
+		} finally {
+			fs.rmdirSync(dir);
+		}
 	});
 });

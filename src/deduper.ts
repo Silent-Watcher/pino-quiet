@@ -26,7 +26,23 @@ export class Deduper {
 	ingest(obj: LogRecord): void {
 		const now = Date.now();
 
-		if (this.bufferedLog && isDuplicate(this.bufferedLog, obj, this.opts)) {
+		let duplicate = false;
+		if (this.bufferedLog) {
+			try {
+				duplicate = isDuplicate(this.bufferedLog, obj, this.opts);
+			} catch (err) {
+				// A failing comparator must not crash the logging pipeline: treat
+				// the record as "not a duplicate" so the pending batch is flushed
+				// and processing continues, with the failure surfaced on stderr.
+				process.stderr.write(
+					`pino-quiet: comparator threw an error: ${
+						(err as Error)?.stack ?? String(err)
+					}\n`,
+				);
+			}
+		}
+
+		if (duplicate) {
 			this.repeatCount++;
 			this.lastSeen = now;
 
@@ -60,7 +76,17 @@ export class Deduper {
 			if (this.repeatCount > 0) {
 				log[this.opts.countField] = totalOccurrences;
 				if (this.opts.annotateMessage && typeof log.msg === 'string') {
-					log.msg = `${log.msg}${this.opts.suffixFormat(totalOccurrences)}`;
+					try {
+						log.msg = `${log.msg}${this.opts.suffixFormat(totalOccurrences)}`;
+					} catch (err) {
+						// A failing suffix formatter must not lose the log: emit it
+						// without the suffix (the count field is already set).
+						process.stderr.write(
+							`pino-quiet: suffixFormat hook threw an error: ${
+								(err as Error)?.stack ?? String(err)
+							}\n`,
+						);
+					}
 				}
 			}
 		}
