@@ -21,8 +21,7 @@
     </a>
     <a href="https://github.com/Silent-Watcher/pino-quiet/actions">
       <img src="https://github.com/Silent-Watcher/pino-quiet/actions/workflows/ci.yaml/badge.svg">
-    </a>
-  </p>
+    </a>  </p>
 </div>
 
 > `pino-quiet` is a lightweight [Pino](https://getpino.io) transport that **reduces log noise** by collapsing repeated consecutive log messages into a single entry with a repetition counter.
@@ -63,7 +62,7 @@ pnpm add pino-quiet
 yarn add pino-quiet
 ```
 
-Requires Node.js `>= 18` and `pino ^10`.
+Requires Node.js `>= 20` and `pino ^9 || ^10`.
 
 ## Quick start
 
@@ -180,6 +179,28 @@ logger.error('Giving up on database. Exiting.');
 This works with any transport that can be a pipeline stage, not just `pino-pretty` — for example shipping the collapsed stream on to a log-forwarding transport. See `example/pipeline-with-pino-pretty.ts` for a runnable copy of this example.
 
 > **Note:** `destination`, `mkdir`, `append`, and `sync` are ignored in pipeline mode — the *last* stage in the pipeline is responsible for the actual destination.
+
+## Worker transport and callback options
+
+Pino serializes transport options with the Structured Clone algorithm before passing them to a worker thread. This means:
+
+- **All plain-data options work everywhere**: `strict`, `countField`, `ignoreKeys`, `levelAware`, `caseInsensitive`, `maxRepeats`, `flushIntervalMs`, `minRepeatsToAnnotate`, `annotateMessage`, `includeTimestamps`, `firstSeenField`, `lastSeenField`, `destination`, `pipeline`, `mkdir`, `append`, `sync` — in both standard `pino({ transport: { target: 'pino-quiet' } })` usage and direct factory invocation.
+- **Callback options only work with direct factory invocation**: `comparator`, `suffixFormat`, and `onFlush` are functions and cannot be serialized. Passing them via `pino({ transport: { target: 'pino-quiet', options: { ... } } })` throws `could not be cloned`. To use callbacks, build the transport yourself and hand it to pino:
+
+```ts
+import { once } from 'node:events';
+import pino from 'pino';
+import pinoQuiet from 'pino-quiet';
+
+const transport = await pinoQuiet({
+  destination: './app.log',
+  onFlush: (log, meta) => metrics.histogram('log.repeats', meta.repeats),
+});
+
+const logger = pino(transport);
+```
+
+- **`require()` interop**: the package is ESM-only. On Node.js `>= 22.12`, `require('pino-quiet')` works via native `require(esm)` support; on older Node versions, use `import`.
 
 ## Migrating from 0.9.x
 

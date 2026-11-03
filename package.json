@@ -5,7 +5,7 @@
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"engines": {
-		"node": ">=v22.18.0"
+		"node": ">=20.0.0"
 	},
 	"files": [
 		"dist",
@@ -15,8 +15,9 @@
 	],
 	"exports": {
 		".": {
-			"require": "./dist/index.js",
-			"types": "./dist/index.d.ts"
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.js"
 		}
 	},
 	"keywords": [
@@ -51,6 +52,7 @@
 		"prestart": "npm run build",
 		"start": "node dist/index.js",
 		"test": "vitest run --coverage",
+		"test:pack": "node scripts/pack-smoke.mjs",
 		"test:watch": "vitest dev",
 		"prelint": "biome format --write ./src/*.ts ./tests/*.ts",
 		"lint": "biome lint ./src/*.ts ./tests/*.ts",
@@ -75,12 +77,13 @@
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.7",
 		"pino": "^10.1.0",
+		"pino-pretty": "^13.2.0",
 		"tsup": "^8.5.1",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.14"
 	},
 	"peerDependencies": {
-		"pino": "^10.1.0"
+		"pino": "^9.0.0 || ^10.0.0"
 	},
 	"dependencies": {
 		"fast-deep-equal": "^3.1.3",

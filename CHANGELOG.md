@@ -7,6 +7,12 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### 🚨 Fixed
 
+- **`import pinoQuiet from 'pino-quiet'` now works.** The `exports` map was
+  missing `import`/`default` conditions, so any direct ESM import of the
+  package failed with `ERR_PACKAGE_PATH_NOT_EXPORTED`. Standard
+  `pino({ transport: { target: 'pino-quiet' } })` usage was unaffected
+  (Pino resolves targets through `require`), and the native
+  `require(esm)` interop path is preserved.
 - **Pipeline mode no longer silently discards the buffered log on teardown.**
   When a pipeline transport is destroyed or errors before a normal end, the
   pending (possibly collapsed) log is now emitted to `stderr` instead of
@@ -33,6 +39,15 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### ✨ Added
 
+- Real Pino integration test suite: worker-transport destination mode,
+  pipeline with `pino/file` and `pino-pretty`, worker serialization
+  compatibility matrix (plain-data options must clone; callback options
+  must fail with `could not be cloned`), and direct factory invocation
+  covering `comparator`/`suffixFormat`/`onFlush`.
+- `npm run test:pack` — packs the tarball, installs it into a clean
+  consumer project, and verifies ESM import, `require(esm)` interop,
+  Pino transport discovery, destination mode, pipeline mode, and the
+  shipped TypeScript declarations.
 - Construction-time validation for JS consumers bypassing the TypeScript
   types: non-function `comparator`/`suffixFormat`/`onFlush`, non-array or
   non-string-entry `ignoreKeys`, and empty or `__proto__` values for
@@ -40,6 +55,19 @@ This project follows [Semantic Versioning](https://semver.org/).
   with a clear message instead of failing unpredictably later.
 - Pipeline-mode transports expose their internal collapsing Transform via
   the exported `INTERNAL_TRANSFORM` symbol (for tests and introspection).
+
+### 💼 Changed
+
+- Node.js engine floor lowered from `>=v22.18.0` to `>=20.0.0` to match
+  the actual runtime requirements (no Node 22+ API is used; Pino's own
+  `thread-stream` dependency is the floor). Backward-compatible.
+- Peer dependency range widened from `pino ^10.1.0` to
+  `pino ^9.0.0 || ^10.0.0`; Pino 9 is covered by an integration-test job.
+- CI replaced by a single quality workflow: Node 20/22/24 matrix running
+  TypeScript, Biome, full tests, build, and the pack smoke test; a Pino 9
+  compatibility job; explicit `permissions: contents: read`; no
+  badge-committing pushes from CI. The Dependabot config file was renamed
+  to the recognized lowercase filename with invalid keys removed.
 
 ## [1.0.0]
 
